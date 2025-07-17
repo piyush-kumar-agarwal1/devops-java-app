@@ -5,6 +5,7 @@ on:
     branches: [main]
   push:
     branches: [main]
+    tags: ['v*.*.*']
 
 permissions:
   contents: read
@@ -28,14 +29,40 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            # Version tags
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            
+            # Branch tags
+            type=ref,event=branch
+            type=ref,event=pr
+            
+            # SHA tags
+            type=sha,prefix={{branch}}-
+            
+            # Latest tag
+            type=raw,value=latest,enable={{is_default_branch}}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: |
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
-            ghcr.io/${{ github.repository }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          
+          # Multi-layer caching strategy
+          cache-from: |
+            type=gha
+            type=registry,ref=ghcr.io/${{ github.repository }}:cache
+          cache-to: |
+            type=gha,mode=max
+            type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
