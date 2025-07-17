@@ -1,3 +1,4 @@
+# Stage 1: Build the JAR
 FROM public.ecr.aws/docker/library/maven:3.9.4-eclipse-temurin-17 AS builder
 WORKDIR /app
 
@@ -8,10 +9,11 @@ COPY src ./src
 
 RUN mvn clean package -DskipTests -B
 
-
-
-FROM public.ecr.aws/docker/library/eclipse-temurin:17-jre-alpine
+# Stage 2: Run the App
+FROM public.ecr.aws/docker/library/eclipse-temurin:17-jre
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/*.jar app.jar
 
