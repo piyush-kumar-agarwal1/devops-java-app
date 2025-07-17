@@ -35,20 +35,24 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            # Version tags
+            # Version tags (for tags like v1.0.1)
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             
-            # Branch tags
+            # Branch tags (for branch pushes)
             type=ref,event=branch
-            type=ref,event=pr
             
-            # SHA tags
-            type=sha,prefix={{branch}}-
+            # PR tags (for pull requests)
+            type=ref,event=pr,prefix=pr-
             
-            # Latest tag
+            # SHA tags with proper conditions
+            type=sha,prefix={{branch}}-,enable={{is_default_branch}}
+            type=sha,prefix=tag-,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            
+            # Latest tag (for main branch and version tags)
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -63,6 +67,7 @@ jobs:
           cache-from: |
             type=gha
             type=registry,ref=ghcr.io/${{ github.repository }}:cache
+            type=registry,ref=ghcr.io/${{ github.repository }}:latest
           cache-to: |
             type=gha,mode=max
             type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
