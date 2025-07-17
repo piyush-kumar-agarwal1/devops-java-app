@@ -1,0 +1,13 @@
+README.md
+.gitignore
+target/
+!target/*.jar
+.github/
+Dockerfile
+.dockerignore
+.env
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
