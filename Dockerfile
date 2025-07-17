@@ -1,19 +1,18 @@
 # Stage 1: Build the JAR
-FROM public.ecr.aws/docker/library/maven:3.9.4-eclipse-temurin-17 AS builder
+FROM public.ecr.aws/docker/library/maven:3.9.4-eclipse-temurin-17-alpine AS builder
 WORKDIR /app
 
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
 COPY src ./src
-
 RUN mvn clean package -DskipTests -B
 
-# Stage 2: Run the App
-FROM public.ecr.aws/docker/library/eclipse-temurin:17-jre
+# Stage 2: Run the App 
+FROM public.ecr.aws/docker/library/eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl
 
 COPY --from=builder /app/target/*.jar app.jar
 
