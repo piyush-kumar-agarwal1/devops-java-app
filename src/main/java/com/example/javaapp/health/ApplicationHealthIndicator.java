@@ -10,7 +10,7 @@ public class ApplicationHealthIndicator implements HealthIndicator {
     @Override
     public Health health() {
         return Health.up()
-                .withDetail("service", "Java App")
+                .withDetail("service", "Python")
                 .withDetail("timestamp", System.currentTimeMillis())
                 .build();
     }
