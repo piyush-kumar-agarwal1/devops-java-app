@@ -13,44 +13,36 @@ permissions:
 
 jobs:
   build-and-push:
+    name: Build and Push Docker Image to GHCR
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
+      - name: Log in to GitHub Container Registry (GHCR)
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            # Version tags (for tags like v1.0.1)
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-
-            # Branch tags (for branch pushes)
             type=ref,event=branch
-
-            # PR tags (for pull requests)
             type=ref,event=pr,prefix=pr-
-
-            # SHA tags
             type=sha,prefix={{branch}}-,enable={{is_default_branch}}
             type=sha,prefix=tag-,enable=${{ startsWith(github.ref, 'refs/tags/') }}
-
-            # Latest
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
@@ -70,41 +62,40 @@ jobs:
             type=gha,mode=max
             type=registry,ref=ghcr.io/${{ github.repository }}:cache,mode=max
 
-deploy-to-ec2:
-  name: Deploy to EC2 via SSH
-  needs: build-and-push
-  runs-on: ubuntu-latest
+  deploy-to-ec2:
+    name: Deploy to EC2 via SSH
+    needs: build-and-push
+    runs-on: ubuntu-latest
 
-  steps:
-    - name: Deploy via SSH
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
-          echo "✅ Updating system and installing Docker if not installed..."
-          if ! command -v docker &> /dev/null
-          then
-            sudo apt update
-            sudo apt install -y docker.io
-            sudo systemctl start docker
-            sudo systemctl enable docker
-            sudo usermod -aG docker $USER
-            newgrp docker
-            echo "✅ Docker installed successfully"
-          else
-            echo "✅ Docker already installed"
-          fi
+    steps:
+      - name: Deploy via SSH to EC2 and Run Container
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "🔧 Installing Docker if not present..."
+            if ! command -v docker &> /dev/null; then
+              sudo apt update
+              sudo apt install -y docker.io
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker $USER
+              newgrp docker
+              echo "Docker installed"
+            else
+              echo "Docker already installed"
+            fi
 
-          echo "✅ Pulling latest Docker image from GHCR..."
-          docker pull ghcr.io/${{ github.repository }}:latest
+            echo "Pulling latest image from GHCR..."
+            docker pull ghcr.io/${{ github.repository }}:latest
 
-          echo "✅ Stopping and removing old container if exists..."
-          docker stop myapp || true
-          docker rm myapp || true
+            echo "Stopping and removing any old container..."
+            docker stop myapp || true
+            docker rm myapp || true
 
-          echo "✅ Running new container..."
-          docker run -d --name myapp -p 8081:8080 ghcr.io/${{ github.repository }}:latest
+            echo "Starting new container..."
+            docker run -d --name myapp -p 8081:8080 ghcr.io/${{ github.repository }}:latest
 
-          echo "✅ Deployment completed!"
+            echo "Deployment successful! App is running on port 8081"
