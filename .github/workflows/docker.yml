@@ -81,21 +81,26 @@ jobs:
               sudo apt install -y docker.io
               sudo systemctl start docker
               sudo systemctl enable docker
-              sudo usermod -aG docker $USER
-              newgrp docker
-              echo "Docker installed"
+              echo " Docker installed"
             else
-              echo "Docker already installed"
+              echo " Docker already installed"
             fi
 
-            echo "Pulling latest image from GHCR..."
-            docker pull ghcr.io/${{ github.repository }}:latest
+            echo " Pulling image from GHCR..."
+            sudo docker pull ghcr.io/${{ github.repository }}:latest
 
-            echo "Stopping and removing any old container..."
-            docker stop myapp || true
-            docker rm myapp || true
+            echo " Stopping and removing any existing container..."
+            sudo docker stop myapp || true
+            sudo docker rm myapp || true
 
-            echo "Starting new container..."
-            docker run -d --name myapp -p 8081:8080 ghcr.io/${{ github.repository }}:latest
+            echo " Running container with health check..."
+            sudo docker run -d \
+              --name myapp \
+              -p 8081:8080 \
+              --health-cmd="curl -f http://localhost:8080/actuator/health || exit 1" \
+              --health-interval=30s \
+              --health-timeout=10s \
+              --health-retries=3 \
+              ghcr.io/${{ github.repository }}:latest
 
-            echo "Deployment successful! App is running on port 8081"
+            echo " Deployment successful! App running on port 8081"
