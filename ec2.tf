@@ -26,10 +26,10 @@ resource "aws_security_group" "allow_ssh" {
 }
 
 resource "aws_instance" "my_ec2" {
-  ami                         = "ami-0f58b397bc5c1f2e8" # Amazon Linux 2 or Ubuntu
+  ami                         = "ami-0f58b397bc5c1f2e8"
   instance_type               = "t2.micro"
   subnet_id                   = aws_subnet.public_subnet.id
-  key_name                    = var.key_name  # 🔥 Directly use var
+  key_name                    = var.key_name
   vpc_security_group_ids      = [aws_security_group.allow_ssh.id]
   iam_instance_profile        = aws_iam_instance_profile.ec2_profile.name
 
